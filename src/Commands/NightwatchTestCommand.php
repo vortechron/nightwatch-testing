@@ -35,15 +35,15 @@ class NightwatchTestCommand extends Command
         $this->newLine();
 
         $this->testCommands();
+        $this->testNotifications();
         $this->testQueries();
         $this->testCache();
         $this->testJobs();
-        $this->testNotifications();
         $this->testMail();
         $this->testInternalRequests();
         $this->testAuthenticatedRequests();
-        $this->testOutgoingRequests();
         $this->testExceptions();
+        $this->testOutgoingRequests();
 
         $this->newLine();
         $this->components->info('All Nightwatch test events triggered!');
@@ -565,28 +565,12 @@ class NightwatchTestCommand extends Command
         $baseUrl = config('nightwatch-testing.outgoing_request_url', 'https://httpbin.org');
 
         $requests = [
-            // 2XX Success responses
+            // One request per status category
             ['method' => 'GET', 'path' => '/status/200', 'label' => 'Request 2XX (200 OK)'],
-            ['method' => 'POST', 'path' => '/status/201', 'label' => 'Request 2XX (201 Created)'],
-            ['method' => 'GET', 'path' => '/status/204', 'label' => 'Request 2XX (204 No Content)'],
-
-            // 3XX Redirect responses
             ['method' => 'GET', 'path' => '/status/301', 'label' => 'Request 3XX (301 Moved Permanently)'],
-            ['method' => 'GET', 'path' => '/status/302', 'label' => 'Request 3XX (302 Found)'],
-
-            // 4XX Client error responses
-            ['method' => 'GET', 'path' => '/status/400', 'label' => 'Request 4XX (400 Bad Request)'],
-            ['method' => 'GET', 'path' => '/status/401', 'label' => 'Request 4XX (401 Unauthorized)'],
-            ['method' => 'GET', 'path' => '/status/403', 'label' => 'Request 4XX (403 Forbidden)'],
             ['method' => 'GET', 'path' => '/status/404', 'label' => 'Request 4XX (404 Not Found)'],
-            ['method' => 'GET', 'path' => '/status/422', 'label' => 'Request 4XX (422 Unprocessable Entity)'],
-            ['method' => 'GET', 'path' => '/status/429', 'label' => 'Request 4XX (429 Too Many Requests)'],
-
-            // 5XX Server error responses
             ['method' => 'GET', 'path' => '/status/500', 'label' => 'Request 5XX (500 Internal Server Error)'],
-            ['method' => 'GET', 'path' => '/status/502', 'label' => 'Request 5XX (502 Bad Gateway)'],
-            ['method' => 'GET', 'path' => '/status/503', 'label' => 'Request 5XX (503 Service Unavailable)'],
-            ['method' => 'GET', 'path' => '/status/504', 'label' => 'Request 5XX (504 Gateway Timeout)'],
+            ['method' => 'GET', 'path' => '/delay/10', 'label' => 'Request Timeout (10s delay)'],
         ];
 
         foreach ($requests as $request) {
