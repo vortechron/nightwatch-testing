@@ -8,8 +8,8 @@ Route::prefix('api/nightwatch-test')->group(function () {
     Route::get('/public', [NightwatchTestController::class, 'public'])
         ->name('nightwatch-test.public');
 
-    // Protected endpoint (requires Sanctum auth)
-    Route::middleware('auth:sanctum')->group(function () {
+    // Protected endpoint (requires auth)
+    Route::middleware('auth:web')->group(function () {
         Route::get('/authenticated', [NightwatchTestController::class, 'authenticated'])
             ->name('nightwatch-test.authenticated');
     });
