@@ -285,6 +285,20 @@ class NightwatchTestCommand extends Command
 
             return true;
         });
+
+        // WRITE-FAILURE
+        $this->components->task('Cache WRITE-FAILURE (put fails)', function () use ($testKey) {
+            Cache::driver('failing')->put($testKey.'_fail', 'value', 60);
+
+            return true;
+        });
+
+        // DELETE-FAILURE
+        $this->components->task('Cache DELETE-FAILURE (forget fails)', function () use ($testKey) {
+            Cache::driver('failing')->forget($testKey.'_fail');
+
+            return true;
+        });
     }
 
     /**
