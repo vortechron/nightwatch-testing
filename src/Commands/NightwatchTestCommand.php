@@ -535,6 +535,10 @@ class NightwatchTestCommand extends Command
         // Create a temporary Sanctum token for testing
         $token = $user->createToken('nightwatch-test')->plainTextToken;
 
+        // Log debug info
+        $this->info("  → Detected guard: " . (config('nightwatch-testing.detected_guard') ?? 'none'));
+        $this->info("  → Token (first 20 chars): " . substr($token, 0, 20) . '...');
+
         // Test authenticated endpoints
         foreach ($endpoints as $endpoint) {
             $method = strtolower($endpoint['method'] ?? 'GET');
@@ -548,8 +552,14 @@ class NightwatchTestCommand extends Command
                         ->acceptJson()
                         ->{$method}($baseUrl.$path);
 
+                    $this->output->writeln("  → Response status: " . $response->status());
+                    if (!$response->successful()) {
+                        $this->output->writeln("  → Response body: " . $response->body());
+                    }
+
                     return $response->successful();
-                } catch (Exception) {
+                } catch (Exception $e) {
+                    $this->output->writeln("  → Exception: " . $e->getMessage());
                     return false;
                 }
             });

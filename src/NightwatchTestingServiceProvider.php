@@ -51,13 +51,16 @@ class NightwatchTestingServiceProvider extends ServiceProvider
     protected function detectAuthGuard(): ?string
     {
         if (class_exists(\Laravel\Sanctum\HasApiTokens::class)) {
+            logger()->info('[Nightwatch] Detected auth guard: sanctum');
             return 'sanctum';
         }
 
         if (class_exists(\Laravel\Passport\HasApiTokens::class)) {
+            logger()->info('[Nightwatch] Detected auth guard: api (Passport)');
             return 'api';
         }
 
+        logger()->warning('[Nightwatch] No auth guard detected (Sanctum/Passport not found)');
         return null;
     }
 }
