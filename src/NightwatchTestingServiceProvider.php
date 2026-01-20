@@ -18,6 +18,10 @@ class NightwatchTestingServiceProvider extends ServiceProvider
     {
         $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
 
+        $this->app['config']->set('cache.stores.failing', [
+            'driver' => 'failing',
+        ]);
+
         Cache::extend('failing', fn () => Cache::repository(new class extends ArrayStore
         {
             public function put($key, $value, $seconds)
