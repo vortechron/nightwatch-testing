@@ -9,8 +9,11 @@ Route::prefix('api/nightwatch-test')->group(function () {
         ->name('nightwatch-test.public');
 
     // Protected endpoint (requires auth)
-    Route::middleware('auth:web')->group(function () {
-        Route::get('/authenticated', [NightwatchTestController::class, 'authenticated'])
-            ->name('nightwatch-test.authenticated');
-    });
+    $guard = config('nightwatch-testing.detected_guard');
+    if ($guard) {
+        Route::middleware("auth:{$guard}")->group(function () {
+            Route::get('/authenticated', [NightwatchTestController::class, 'authenticated'])
+                ->name('nightwatch-test.authenticated');
+        });
+    }
 });

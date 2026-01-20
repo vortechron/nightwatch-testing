@@ -46,8 +46,8 @@ return [
     |--------------------------------------------------------------------------
     |
     | Configure the authenticated API endpoints to test. These endpoints will
-    | be called with a Sanctum bearer token during authenticated request tests.
-    | The first user in the database will be used to generate the token.
+    | be called with an API bearer token (Sanctum/Passport) during authenticated
+    | request tests. The first user in the database will be used to generate the token.
     |
     */
     'authenticated_endpoints' => [

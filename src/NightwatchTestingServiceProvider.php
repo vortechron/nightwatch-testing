@@ -16,6 +16,8 @@ class NightwatchTestingServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->app['config']->set('nightwatch-testing.detected_guard', $this->detectAuthGuard());
+
         $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
 
         $this->app['config']->set('cache.stores.failing', [
@@ -44,5 +46,18 @@ class NightwatchTestingServiceProvider extends ServiceProvider
                 __DIR__.'/../config/nightwatch-testing.php' => config_path('nightwatch-testing.php'),
             ], 'nightwatch-testing-config');
         }
+    }
+
+    protected function detectAuthGuard(): ?string
+    {
+        if (class_exists(\Laravel\Sanctum\HasApiTokens::class)) {
+            return 'sanctum';
+        }
+
+        if (class_exists(\Laravel\Passport\HasApiTokens::class)) {
+            return 'api';
+        }
+
+        return null;
     }
 }
