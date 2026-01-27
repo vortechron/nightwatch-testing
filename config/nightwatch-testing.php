@@ -78,4 +78,18 @@ return [
     |
     */
     'outgoing_request_url' => env('NIGHTWATCH_OUTGOING_URL', 'https://httpbin.org'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Bulk Entry Generation
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for bulk entry generation features.
+    |
+    */
+    'bulk' => [
+        'max_count' => 1000,
+        'slow_query_interval' => 5,
+        'slow_query_delay' => 0.3,
+    ],
 ];

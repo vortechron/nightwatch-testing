@@ -16,10 +16,13 @@ use Vortechron\NightwatchTesting\Jobs\NightwatchTestJob;
 use Vortechron\NightwatchTesting\Mail\NightwatchQueuedMail;
 use Vortechron\NightwatchTesting\Mail\NightwatchTestMail;
 use Vortechron\NightwatchTesting\Notifications\NightwatchTestNotification;
+use Vortechron\NightwatchTesting\Services\BulkGenerator;
 
 class NightwatchTestCommand extends Command
 {
     protected $signature = 'nightwatch:test
+        {--count=1 : Number of entries to generate for each category (default: 1)}
+        {--type=all : Specific entry type to generate (queries|cache|jobs|mail|notifications|exceptions|all)}
         {--skip-mail : Skip sending test mail}
         {--skip-exception : Skip triggering exception}
         {--skip-requests : Skip outgoing HTTP request tests}
@@ -31,6 +34,13 @@ class NightwatchTestCommand extends Command
 
     public function handle(): int
     {
+        $count = (int) $this->option('count');
+        $type = $this->option('type');
+
+        if ($count > 1 || $type !== 'all') {
+            return $this->handleBulk($type, $count);
+        }
+
         $this->info('Starting Nightwatch test events...');
         $this->newLine();
 
@@ -48,7 +58,43 @@ class NightwatchTestCommand extends Command
         $this->newLine();
         $this->components->info('All Nightwatch test events triggered!');
 
-        return self::SUCCESS;
+        return Command::SUCCESS;
+    }
+
+    /**
+     * Handle bulk entry generation.
+     */
+    protected function handleBulk(string $type, int $count): int
+    {
+        $this->info("Starting bulk generation for type '{$type}' (count: {$count})...");
+
+        $bar = null;
+        if ($count > 10) {
+            $bar = $this->output->createProgressBar();
+            $total = ($type === 'all') ? $count * 6 : $count;
+            $bar->setMaxSteps($total);
+            $bar->start();
+        }
+
+        $options = [
+            'skip-mail' => $this->option('skip-mail'),
+            'skip-exception' => $this->option('skip-exception'),
+            'skip-failing-job' => $this->option('skip-failing-job'),
+            'skip-notifications' => $this->option('skip-notifications'),
+        ];
+
+        $generator = new BulkGenerator();
+        $generatedCount = $generator->generate($type, $count, $options, function () use ($bar) {
+            $bar?->advance();
+        });
+
+        $bar?->finish();
+        $this->newLine();
+        $this->newLine();
+
+        $this->components->info("Successfully generated {$generatedCount} bulk entries!");
+
+        return Command::SUCCESS;
     }
 
     /**
@@ -525,15 +571,30 @@ class NightwatchTestCommand extends Command
             return;
         }
 
-        // Check if user model has createToken method (Sanctum)
+        // Check if user model has createToken method (Sanctum/Passport)
         if (! method_exists($user, 'createToken')) {
-            $this->components->warn('User model does not have createToken method (Sanctum required) - skipping');
+            $this->components->warn('User model does not have createToken method (Sanctum/Passport required) - skipping');
 
             return;
         }
 
-        // Create a temporary Sanctum token for testing
-        $token = $user->createToken('nightwatch-test')->plainTextToken;
+        // Detect which token system is in use and create token accordingly
+        $detectedGuard = config('nightwatch-testing.detected_guard');
+        $tokenResult = $user->createToken('nightwatch-test');
+
+        // Passport returns PersonalAccessTokenResult with ->accessToken
+        // Sanctum returns NewAccessToken with ->plainTextToken
+        if ($tokenResult instanceof \Laravel\Passport\PersonalAccessTokenResult) {
+            // Passport token
+            $token = $tokenResult->accessToken;
+        } elseif ($tokenResult instanceof \Laravel\Sanctum\NewAccessToken) {
+            // Sanctum token
+            $token = $tokenResult->plainTextToken;
+        } else {
+            $this->components->warn('Could not extract token from createToken result (unknown type: ' . get_class($tokenResult) . ') - skipping');
+
+            return;
+        }
 
         // Log debug info
         $this->info("  → Detected guard: " . (config('nightwatch-testing.detected_guard') ?? 'none'));
@@ -565,6 +626,44 @@ class NightwatchTestCommand extends Command
             });
         }
 
+        // Dispatch authenticated job via HTTP endpoint
+        $this->components->task('Dispatch authenticated job via HTTP', function () use ($baseUrl, $token) {
+            try {
+                $response = Http::timeout(5)
+                    ->withToken($token)
+                    ->acceptJson()
+                    ->post($baseUrl . '/api/nightwatch-test/authenticated-job');
+
+                $this->output->writeln("  → Response status: " . $response->status());
+                if (! $response->successful()) {
+                    $this->output->writeln("  → Response body: " . $response->body());
+                }
+
+                return $response->successful();
+            } catch (Exception $e) {
+                $this->output->writeln("  → Exception: " . $e->getMessage());
+
+                return false;
+            }
+        });
+
+        // Trigger authenticated exception via HTTP endpoint
+        $this->components->task('Trigger authenticated exception via HTTP', function () use ($baseUrl, $token) {
+            try {
+                $response = Http::timeout(5)
+                    ->withToken($token)
+                    ->acceptJson()
+                    ->get($baseUrl . '/api/nightwatch-test/authenticated-exception');
+
+                // Expecting 500 error since it throws an exception
+                return $response->status() === 500;
+            } catch (Exception $e) {
+                $this->output->writeln("  → Exception: " . $e->getMessage());
+
+                return false;
+            }
+        });
+
         // Clean up the test token
         $this->components->task('Cleanup test token', function () use ($user) {
             $user->tokens()->where('name', 'nightwatch-test')->delete();
@@ -587,6 +686,13 @@ class NightwatchTestCommand extends Command
         }
 
         $baseUrl = config('nightwatch-testing.outgoing_request_url', 'https://httpbin.org');
+
+        // Synchronous outgoing request from command context
+        $this->components->task('Request from command context (sync)', function () use ($baseUrl) {
+            $response = Http::get($baseUrl.'/status/200');
+
+            return $response->successful();
+        });
 
         $requests = [
             // One request per status category
